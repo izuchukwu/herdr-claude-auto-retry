@@ -9,6 +9,7 @@ import { createLogger, tailLog } from '../src/logger.js';
 import { createHerdr, isClaudeAgent } from '../src/herdr.js';
 import { createMonitorState, carriedState, processOneTick } from '../src/monitor-core.js';
 import { recover } from '../src/recovery.js';
+import { runNotify } from '../src/notify.js';
 import { stateDir } from '../src/paths.js';
 import {
   claimSlot, touchRecord, removeRecord, readRecord, listRecords, isFresh, hasActiveMonitor, lockHeldByOther,
@@ -299,13 +300,18 @@ async function monitor() {
         const verb = isTransient ? 'retry in' : 'waiting';
         const stuck = state.lastStuck ? ' [stuck; herdr reported working]' : '';
         logger.info(`${label}${stuck}: "${state.lastRateLimitMessage.slice(0, 120)}" -> ${verb} ${humanDur(state.waitUntil - Date.now())}`);
+        if (!isTransient) runNotify(config, logger, 'limit', { paneId: pane.pane_id, message: state.lastRateLimitMessage, resumeAt: state.waitUntil });
         state.lastRateLimitMessage = null;
       }
       if (result === 'retried') {
         const next = humanDur(state.waitUntil - Date.now());
         logger.info(isTransient ? `nudged (attempt ${state.nudges}); next retry in ${next}` : `resumed (attempt ${state.attempts})`);
+        if (!isTransient) runNotify(config, logger, 'resumed', { paneId: pane.pane_id, attempt: state.attempts });
       }
-      if (result === 'user-continued') logger.info(isTransient ? 'server error cleared; monitoring' : 'limit cleared; monitoring');
+      if (result === 'user-continued') {
+        logger.info(isTransient ? 'server error cleared; monitoring' : 'limit cleared; monitoring');
+        if (!isTransient) runNotify(config, logger, 'cleared', { paneId: pane.pane_id });
+      }
       if (result === 'max-retries' && lastResult !== 'max-retries') logger.warn(`max retries (${config.maxRetries}) reached; cooling down`);
       if (result === 'skipped-not-claude') logger.warn('pane no longer a Claude agent; skipping send');
       lastResult = result;

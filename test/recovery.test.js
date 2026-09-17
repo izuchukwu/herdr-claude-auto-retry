@@ -169,3 +169,25 @@ test('the non-Escape path never reads the pane and never repairs', async () => {
   assert.ok(!h.calls.some((c) => c.includes('ctrl+u')));
   assert.equal(h.calls.filter((c) => c[0] === 'send-text').length, 1);
 });
+
+// supervision fork: on Claude Code 2.1.x the /rate-limit-options menu can put "Upgrade your
+// plan" or "Add funds" under the cursor. Esc dismisses it (verified live on 2.1.273), but if a
+// menu is somehow still open after Esc, Enter must never be pressed.
+test('a menu still open after Escape never gets Enter', async () => {
+  const h = mockHerdr();
+  h.paneRead = async () => "What do you want to do?\n❯ 1. Upgrade your plan\n  2. Stop and wait for limit to reset\nEnter to confirm · Esc to cancel\n";
+  const logs = [];
+  const sent = await recover(h, '1-2', CFG, { blocked: true, log: (m) => logs.push(m) });
+  assert.equal(sent, false);
+  assert.deepEqual(h.calls, [['send-keys', '1-2', 'esc'], ['send-text', '1-2', 'go on']]);
+  assert.ok(!h.calls.some((c) => c.includes('enter')));
+  assert.match(logs[0], /menu is still open/);
+});
+
+test('a dismissed menu proceeds to type and submit', async () => {
+  const h = mockHerdr();
+  h.paneRead = async () => '──────\n❯ go on\n──────\n';
+  const sent = await recover(h, '1-2', CFG, { blocked: true });
+  assert.equal(sent, true);
+  assert.deepEqual(h.calls.at(-1), ['send-keys', '1-2', 'enter']);
+});

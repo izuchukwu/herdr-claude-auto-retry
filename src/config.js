@@ -23,6 +23,7 @@ export const DEFAULT_CONFIG = {
   submitDelayMs: 400,
   eligibleStates: ['idle', 'blocked', 'done'],
   engagedLabel: 'retry engaged',
+  notifyCommand: [],
 };
 
 const SELECTABLE_STATES = ['idle', 'blocked', 'done', 'unknown'];
@@ -82,6 +83,9 @@ function validate(cfg) {
     if (cfg.eligibleStates.length === 0) cfg.eligibleStates = [...DEFAULT_CONFIG.eligibleStates];
   }
 
+  if (!Array.isArray(cfg.notifyCommand) || !cfg.notifyCommand.every((a) => typeof a === 'string' && a)) {
+    cfg.notifyCommand = [];
+  }
   cfg.customPatterns = validPatternArray(cfg.customPatterns, DEFAULT_CONFIG.customPatterns);
   cfg.customTransientPatterns = validPatternArray(cfg.customTransientPatterns, DEFAULT_CONFIG.customTransientPatterns);
   return cfg;

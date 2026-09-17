@@ -429,3 +429,13 @@ test('an empty or marker-free screen reports nothing', () => {
   assert.equal(latestOutputBlock(''), null);
   assert.equal(classifyLimit('❯\n─────\n  proj git:(main) | Opus 5 | ctx: 4%'), null);
 });
+
+test('dated weekly banner is a reset limit (supervision fork)', () => {
+  assert.equal(classifyLimit("⏺ You've hit your weekly limit · resets Aug 7 at 8pm (America/Los_Angeles)"), 'reset');
+  assert.equal(findRateLimitMessage("⏺ You've hit your weekly limit · resets Aug 7 at 8pm (America/Los_Angeles)"),
+    "⏺ You've hit your weekly limit · resets Aug 7 at 8pm (America/Los_Angeles)");
+});
+
+test('monthly spend limit is still not a stop (supervision fork)', () => {
+  assert.equal(classifyLimit("⏺ You've hit your monthly spend limit · raise it at claude.ai/settings/usage"), null);
+});

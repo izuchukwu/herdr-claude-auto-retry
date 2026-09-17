@@ -2,6 +2,12 @@
 
 Notable changes, newest first. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] (supervision fork)
+
+- Dated resets (`resets Aug 7 at 8pm (America/Los_Angeles)`, shown when a weekly limit resets more than a day out) are detected and waited out to that date, instead of being missed or falling back to five hours.
+- After Escape, if a menu is still on screen, Enter is never pressed, so a menu option such as `Upgrade your plan` can never be confirmed by a resume.
+- Optional `notifyCommand` runs a command on `limit`, `resumed` and `cleared` events, with the details in `CLAUDE_AUTO_RETRY_*` environment variables.
+
 ## [1.3.0] - 2026-09-02
 
 - A rate-limit resume is never sent to a pane herdr still reports as working; the wait is re-checked until the pane stops. Previously a wait armed while the pane was idle could fire Escape into a turn you had resumed by hand hours later.
