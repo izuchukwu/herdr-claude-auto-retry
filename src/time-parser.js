@@ -1,9 +1,28 @@
 
 const RESET_TIME_REGEX = /resets?\s+(?:at\s+)?(?:((?:mon|tue|wed|thu|fri|sat|sun))[a-z]*,?\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:\(([^)]+)\))?/i;
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const DATED_RESET_REGEX = /resets?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?(?:,?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm))?\s*(?:\(([^)]+)\))?/i;
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const RELATIVE_TIME_REGEX = /(?:try again|wait|resets?\s+in)[:\s]\s*(?:for\s+)?(?:in\s+)?(\d+)\s*(hours?|minutes?|mins?|h|m)\b/i;
 
 export function parseResetTime(text) {
+  const dated = text.match(DATED_RESET_REGEX);
+  if (dated) {
+    let hour = dated[4] ? parseInt(dated[4], 10) : 0;
+    const ampm = dated[6]?.toLowerCase() || null;
+    if (ampm === 'pm' && hour !== 12) hour += 12;
+    if (ampm === 'am' && hour === 12) hour = 0;
+    return {
+      hour,
+      minute: dated[5] ? parseInt(dated[5], 10) : 0,
+      timezone: dated[7] || null,
+      ambiguous: false,
+      weekday: null,
+      month: MONTHS.indexOf(dated[1].toLowerCase()) + 1,
+      day: parseInt(dated[2], 10),
+      year: dated[3] ? parseInt(dated[3], 10) : null,
+    };
+  }
   const absMatch = text.match(RESET_TIME_REGEX);
   if (absMatch) {
     const weekday = absMatch[1] ? WEEKDAYS.indexOf(absMatch[1].toLowerCase()) : null;
@@ -99,7 +118,13 @@ export function calculateWaitMs(parsed, marginSeconds = 60, fallbackHours = 5, n
   }
 
   let target;
-  if (parsed.ambiguous) {
+  if (parsed.month) {
+    const nowYear = dateParts(tz, now).y;
+    target = zonedWallToUtc(parsed.year || nowYear, parsed.month, parsed.day, parsed.hour, parsed.minute, tz);
+    if (!parsed.year && target < now.getTime() - 86_400_000) {
+      target = zonedWallToUtc(nowYear + 1, parsed.month, parsed.day, parsed.hour, parsed.minute, tz);
+    }
+  } else if (parsed.ambiguous) {
     const t1 = nextOccurrence(parsed.hour, parsed.minute, tz, now, parsed.weekday);
     const t2 = nextOccurrence((parsed.hour + 12) % 24, parsed.minute, tz, now, parsed.weekday);
     target = Math.min(t1, t2);

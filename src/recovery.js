@@ -6,6 +6,11 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const PROMPT_LINE = /^\s*❯\s?/u;
 const BOX_CHARS = /[─━│┃╭╮╰╯┌┐└┘┄┈]/gu;
 const VERIFY_READ_LINES = 12;
+const MENU_GUIDE = /Enter to confirm\s*·\s*Esc to cancel/i;
+
+export function menuStillOpen(screen) {
+  return typeof screen === 'string' && MENU_GUIDE.test(stripAnsi(screen));
+}
 
 function collapse(text) {
   return String(text).replace(/\s+/g, ' ').trim();
@@ -46,6 +51,7 @@ async function inspectInput(herdr, paneId, config) {
   if (typeof herdr.paneRead !== 'function') return 'unknown';
   try {
     const screen = await herdr.paneRead(paneId, { source: 'visible', lines: VERIFY_READ_LINES, timeoutMs: 1500 });
+    if (menuStillOpen(screen)) return 'menu';
     return classifyTypedInput(screen, config.retryMessage);
   } catch {
     return 'unknown';
@@ -62,15 +68,25 @@ export async function recover(herdr, paneId, config, { blocked = false, log = nu
   await delay(config.submitDelayMs);
 
   if (escaped && config.verifyInput) {
-    if ((await inspectInput(herdr, paneId, config)) === 'eaten') {
+    const first = await inspectInput(herdr, paneId, config);
+    if (first === 'menu') {
+      log?.('a menu is still open after Escape; not pressing Enter');
+      return false;
+    }
+    if (first === 'eaten') {
       await herdr.sendKeys(paneId, 'ctrl+u');
       await delay(config.menuDismissDelayMs);
       await herdr.sendText(paneId, config.retryMessage);
       await delay(config.submitDelayMs);
       const after = await inspectInput(herdr, paneId, config);
+      if (after === 'menu') {
+        log?.('a menu is still open after Escape; not pressing Enter');
+        return false;
+      }
       log?.(after === 'intact' ? 'input repaired (vim normal mode ate the first character)' : `input still not verified (${after}); submitting as typed`);
     }
   }
 
   await herdr.sendKeys(paneId, 'enter');
+  return true;
 }

@@ -29,6 +29,7 @@ The plugin attaches to every Claude pane herdr reports (except panes whose cwd i
 | `verifyInput` | `true` | On recoveries that sent Escape, read back the `❯` input line before Enter and retype the message once if its first character was eaten (Claude Code's vim editor mode runs it as a command). |
 | `submitDelayMs` | `400` | Pause between typing the message and pressing Enter. |
 | `eligibleStates` | `["idle","blocked","done"]` | Pane states the plugin may send to. `working` is never allowed (it is stripped in validation); a working pane can still arm a wait when a reset limit is its latest output. |
+| `notifyCommand` | `[]` | Command (argv array, no shell) run on usage-limit events: `limit`, `resumed`, `cleared`. It receives `CLAUDE_AUTO_RETRY_EVENT`, `_PANE`, `_MESSAGE`, `_RESUME_AT` (ISO time) and `_ATTEMPT` in its environment. Output is ignored. |
 | `engagedLabel` | `"retry engaged"` | Label reported on a pane while it waits out a limit. See below for showing it. |
 
 ## Showing the engaged label

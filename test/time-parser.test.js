@@ -89,3 +89,33 @@ test('a weekday reset waits for the next matching day', () => {
   const wedLater = new Date('2026-09-02T10:00:00Z');
   assert.equal(calculateWaitMs(parsed, 0, 5, wedLater), (7 * 24 - 1) * 3_600_000, 'Wednesday 10am -> next Wednesday 9am');
 });
+
+// Claude Code 2.1.x renders a reset more than a day out as a date (supervision fork).
+test('parses a dated weekly reset', () => {
+  assert.deepEqual(parseResetTime("You've hit your weekly limit · resets Aug 7 at 8pm (America/Los_Angeles)"), {
+    hour: 20, minute: 0, timezone: 'America/Los_Angeles', ambiguous: false, weekday: null, month: 8, day: 7, year: null,
+  });
+});
+
+test('a dated reset waits until that date, not the 5h fallback', () => {
+  const now = new Date('2026-08-05T01:27:16Z');
+  const parsed = parseResetTime('resets Aug 7 at 8pm (America/Los_Angeles)');
+  const ms = calculateWaitMs(parsed, 60, 5, now);
+  assert.equal(now.getTime() + ms, Date.parse('2026-08-08T03:00:00Z') + 60_000);
+});
+
+test('a dated reset with minutes and an explicit year', () => {
+  const now = new Date('2026-12-30T12:00:00Z');
+  const parsed = parseResetTime('resets Jan 2, 2027 at 6:30am (UTC)');
+  assert.equal(now.getTime() + calculateWaitMs(parsed, 0, 5, now), Date.parse('2027-01-02T06:30:00Z'));
+});
+
+test('a dated reset early next year rolls the year forward', () => {
+  const now = new Date('2026-12-30T12:00:00Z');
+  const parsed = parseResetTime('resets Jan 2 at 9am (UTC)');
+  assert.equal(now.getTime() + calculateWaitMs(parsed, 0, 5, now), Date.parse('2027-01-02T09:00:00Z'));
+});
+
+test('clock-only resets still parse without date fields', () => {
+  assert.equal(parseResetTime('resets 6:40pm (America/Los_Angeles)').month, undefined);
+});
